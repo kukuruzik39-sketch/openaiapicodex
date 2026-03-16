@@ -70,6 +70,11 @@ def proxy(path):
             content = response.read()
             status = response.status
             
+            # Log response for debugging
+            logger.info(f"Response status: {status}")
+            logger.info(f"Response headers: {dict(response.headers)}")
+            logger.info(f"Response body (first 500 chars): {content[:500]}")
+            
             # Build response headers
             response_headers = []
             for key, value in response.headers.items():
