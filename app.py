@@ -1,6 +1,9 @@
 from flask import Flask, request, Response
-import requests
+import urllib.request
+import urllib.error
 import logging
+import os
+import ssl
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +17,11 @@ HOST_ROUTING = {
     'tg-api-production.up.railway.app': 'https://api.openai.com',
 }
 
+# Create SSL context that doesn't verify certificates (for corporate proxies)
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 def proxy(path):
@@ -24,38 +32,54 @@ def proxy(path):
         # Get target URL
         target_base = HOST_ROUTING.get(original_host, 'https://api.openai.com')
         
-        # Build full URL - handle both with and without leading slash
+        # Build full URL
         if path:
             target_url = f"{target_base}/{path}"
         else:
             target_url = target_base
         
+        # Add query string
+        if request.query_string:
+            target_url += '?' + request.query_string.decode('utf-8')
+        
         logger.info(f"Proxying {request.method} {path} -> {target_url}")
-        logger.info(f"Original-Host: {original_host}")
         
-        # Copy headers but remove host-specific ones
-        headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'x-original-host']}
+        # Build headers
+        headers = {}
+        for key, value in request.headers:
+            if key.lower() not in ['host', 'x-original-host']:
+                headers[key] = value
         
-        # Forward the request
-        resp = requests.request(
-            method=request.method,
-            url=target_url,
+        # Create request
+        req = urllib.request.Request(
+            target_url,
+            data=request.get_data() or None,
             headers=headers,
-            data=request.get_data(),
-            params=request.args,
-            allow_redirects=False,
-            timeout=30
+            method=request.method
         )
         
-        # Build response
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        response_headers = [(k, v) for k, v in resp.headers.items() if k.lower() not in excluded_headers]
-        
-        return Response(resp.content, resp.status_code, response_headers)
+        # Forward request
+        with urllib.request.urlopen(req, context=ssl_context, timeout=30) as response:
+            # Read response
+            content = response.read()
+            status = response.status
+            
+            # Build response headers
+            response_headers = []
+            for key, value in response.headers.items():
+                if key.lower() not in ['content-encoding', 'content-length', 'transfer-encoding', 'connection']:
+                    response_headers.append((key, value))
+            
+            return Response(content, status, response_headers)
+    
+    except urllib.error.HTTPError as e:
+        logger.error(f"HTTP Error: {e.code} {e.reason}")
+        return Response(e.read(), e.code)
     
     except Exception as e:
         logger.error(f"Proxy error: {e}", exc_info=True)
         return {"error": str(e)}, 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port)
