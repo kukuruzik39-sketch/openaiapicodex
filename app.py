@@ -9,12 +9,12 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Host routing map
+# Host routing map - route everything to OpenAI API
 HOST_ROUTING = {
     'auth.openai.com': 'https://auth.openai.com',
     'auth0.openai.com': 'https://auth0.openai.com',
     'api.openai.com': 'https://api.openai.com',
-    'tg-api-production.up.railway.app': 'https://tg-api-production.up.railway.app',
+    'web-production-9a07.up.railway.app': 'https://api.openai.com',
 }
 
 # Create SSL context that doesn't verify certificates (for corporate proxies)
