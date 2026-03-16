@@ -1,7 +1,6 @@
 from flask import Flask, request, Response
 import requests
 import logging
-import os
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +11,7 @@ HOST_ROUTING = {
     'auth.openai.com': 'https://auth.openai.com',
     'auth0.openai.com': 'https://auth0.openai.com',
     'api.openai.com': 'https://api.openai.com',
+    'tg-api-production.up.railway.app': 'https://api.openai.com',
 }
 
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
@@ -58,5 +58,4 @@ def proxy(path):
         return {"error": str(e)}, 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=8000)
