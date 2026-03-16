@@ -70,10 +70,13 @@ def proxy(path):
             content = response.read()
             status = response.status
             
-            # Log response for debugging
+            # Log full response for debugging
             logger.info(f"Response status: {status}")
             logger.info(f"Response headers: {dict(response.headers)}")
-            logger.info(f"Response body (first 500 chars): {content[:500]}")
+            try:
+                logger.info(f"Response body: {content.decode('utf-8')}")
+            except:
+                logger.info(f"Response body (binary): {content}")
             
             # Build response headers
             response_headers = []
