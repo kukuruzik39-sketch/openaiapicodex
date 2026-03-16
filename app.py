@@ -33,6 +33,9 @@ def proxy(path):
         if original_host == 'web-production-9a07.up.railway.app':
             if path.startswith('oauth/') or path.startswith('authorize'):
                 target_base = 'https://auth.openai.com'
+            elif path.startswith('v1/'):
+                # Route API requests to tg-api-production through our proxy
+                target_base = 'https://tg-api-production.up.railway.app'
             else:
                 target_base = 'https://api.openai.com'
         else:
