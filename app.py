@@ -30,7 +30,7 @@ def proxy(path):
             target_url = f"https://api.openai.com/{path}"
             host = "api.openai.com"
         else:
-            return Response("Not found", 404)
+            elif path.startswith("oauth/"):`n            target_url = f"https://auth.openai.com/{path}"`n            host = "auth.openai.com"`n        else:`n            logging.error(f"No route for: {path} (check_host={check_host})")`n            return Response("Not found", 404)
     headers = {}
     for k, v in request.headers.items():
         if k.lower() not in ["host", "content-length", "x-forwarded-for", "x-real-ip", "via", "x-request-id", "cf-ray", "cf-connecting-ip", "x-original-host"]:
