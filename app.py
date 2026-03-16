@@ -14,7 +14,7 @@ HOST_ROUTING = {
     'auth.openai.com': 'https://auth.openai.com',
     'auth0.openai.com': 'https://auth0.openai.com',
     'api.openai.com': 'https://api.openai.com',
-    'tg-api-production.up.railway.app': 'https://api.openai.com',
+    'tg-api-production.up.railway.app': 'https://tg-api-production.up.railway.app',
 }
 
 # Create SSL context that doesn't verify certificates (for corporate proxies)
