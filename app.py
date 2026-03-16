@@ -4,7 +4,6 @@ import urllib.error
 import logging
 import os
 import ssl
-import json
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -15,9 +14,9 @@ HOST_ROUTING = {
     'auth.openai.com': 'https://auth.openai.com',
     'auth0.openai.com': 'https://auth0.openai.com',
     'api.openai.com': 'https://api.openai.com',
-    'tg-api-production.up.railway.app': 'https://api.openai.com',
 }
 
+# Create SSL context that doesn't verify certificates (for corporate proxies)
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
@@ -26,49 +25,52 @@ ssl_context.verify_mode = ssl.CERT_NONE
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 def proxy(path):
     try:
+        # Get original host from header
         original_host = request.headers.get('X-Original-Host', 'api.openai.com')
-        target_base = HOST_ROUTING.get(original_host, 'https://api.openai.com')
         
+        # Smart routing based on path for web-production-9a07
+        if original_host == 'web-production-9a07.up.railway.app':
+            if path.startswith('oauth/') or path.startswith('authorize'):
+                target_base = 'https://auth.openai.com'
+            else:
+                target_base = 'https://api.openai.com'
+        else:
+            # Get target URL from routing map
+            target_base = HOST_ROUTING.get(original_host, 'https://api.openai.com')
+        
+        # Build full URL
         if path:
             target_url = f"{target_base}/{path}"
         else:
             target_url = target_base
         
+        # Add query string
         if request.query_string:
             target_url += '?' + request.query_string.decode('utf-8')
         
-        # Log request details
-        logger.info(f"=== REQUEST ===")
-        logger.info(f"Method: {request.method}")
-        logger.info(f"Path: {path}")
-        logger.info(f"Target: {target_url}")
-        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Proxying {request.method} {path} -> {target_url}")
         
-        body = request.get_data()
-        if body:
-            try:
-                logger.info(f"Body: {json.loads(body)}")
-            except:
-                logger.info(f"Body (raw): {body[:200]}")
-        
+        # Build headers
         headers = {}
         for key, value in request.headers:
             if key.lower() not in ['host', 'x-original-host']:
                 headers[key] = value
         
+        # Create request
         req = urllib.request.Request(
             target_url,
-            data=body or None,
+            data=request.get_data() or None,
             headers=headers,
             method=request.method
         )
         
+        # Forward request
         with urllib.request.urlopen(req, context=ssl_context, timeout=30) as response:
+            # Read response
             content = response.read()
             status = response.status
             
-            logger.info(f"Response status: {status}")
-            
+            # Build response headers
             response_headers = []
             for key, value in response.headers.items():
                 if key.lower() not in ['content-encoding', 'content-length', 'transfer-encoding', 'connection']:
@@ -78,7 +80,6 @@ def proxy(path):
     
     except urllib.error.HTTPError as e:
         logger.error(f"HTTP Error: {e.code} {e.reason}")
-        logger.error(f"Response: {e.read()}")
         return Response(e.read(), e.code)
     
     except Exception as e:
