@@ -4,6 +4,7 @@ import urllib.error
 import logging
 import os
 import ssl
+import gzip
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -66,11 +67,19 @@ def proxy(path):
         
         # Forward request
         with urllib.request.urlopen(req, context=ssl_context, timeout=30) as response:
-            # Read response (urllib automatically decompresses gzip)
+            # Read response
             content = response.read()
             status = response.status
             
-            # Log full response for debugging
+            # Decompress gzip if needed
+            if response.headers.get('Content-Encoding') == 'gzip':
+                try:
+                    content = gzip.decompress(content)
+                    logger.info("Decompressed gzip response")
+                except:
+                    logger.warning("Failed to decompress gzip, using raw content")
+            
+            # Log response for debugging
             logger.info(f"Response status: {status}")
             try:
                 logger.info(f"Response body: {content.decode('utf-8')}")
