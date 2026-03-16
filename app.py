@@ -66,19 +66,18 @@ def proxy(path):
         
         # Forward request
         with urllib.request.urlopen(req, context=ssl_context, timeout=30) as response:
-            # Read response
+            # Read response (urllib automatically decompresses gzip)
             content = response.read()
             status = response.status
             
             # Log full response for debugging
             logger.info(f"Response status: {status}")
-            logger.info(f"Response headers: {dict(response.headers)}")
             try:
                 logger.info(f"Response body: {content.decode('utf-8')}")
             except:
-                logger.info(f"Response body (binary): {content}")
+                logger.info(f"Response body (binary): {content[:200]}")
             
-            # Build response headers
+            # Build response headers - exclude content-encoding since we decompressed
             response_headers = []
             for key, value in response.headers.items():
                 if key.lower() not in ['content-encoding', 'content-length', 'transfer-encoding', 'connection']:
