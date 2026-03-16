@@ -17,26 +17,26 @@ HOST_ROUTING = {
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 def proxy(path):
-    # Get original host from header
-    original_host = request.headers.get('X-Original-Host', 'api.openai.com')
-    
-    # Get target URL
-    target_base = HOST_ROUTING.get(original_host, 'https://api.openai.com')
-    
-    # Build full URL - handle both with and without leading slash
-    if path:
-        target_url = f"{target_base}/{path}"
-    else:
-        target_url = target_base
-    
-    logger.info(f"Proxying {request.method} {path} -> {target_url}")
-    logger.info(f"Original-Host: {original_host}")
-    
-    # Copy headers but remove host-specific ones
-    headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'x-original-host']}
-    
-    # Forward the request
     try:
+        # Get original host from header
+        original_host = request.headers.get('X-Original-Host', 'api.openai.com')
+        
+        # Get target URL
+        target_base = HOST_ROUTING.get(original_host, 'https://api.openai.com')
+        
+        # Build full URL - handle both with and without leading slash
+        if path:
+            target_url = f"{target_base}/{path}"
+        else:
+            target_url = target_base
+        
+        logger.info(f"Proxying {request.method} {path} -> {target_url}")
+        logger.info(f"Original-Host: {original_host}")
+        
+        # Copy headers but remove host-specific ones
+        headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'x-original-host']}
+        
+        # Forward the request
         resp = requests.request(
             method=request.method,
             url=target_url,
@@ -54,7 +54,7 @@ def proxy(path):
         return Response(resp.content, resp.status_code, response_headers)
     
     except Exception as e:
-        logger.error(f"Proxy error: {e}")
+        logger.error(f"Proxy error: {e}", exc_info=True)
         return {"error": str(e)}, 500
 
 if __name__ == '__main__':
